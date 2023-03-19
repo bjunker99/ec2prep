@@ -33,7 +33,7 @@ func (p *PowerShell) ExecuteScript(script string) (error, string, string) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	cmd := exec.Command(p.powerShell, "-nologo", "-noprofile", "-executionpolicy", "unrestricted", "-file", script)
+	cmd := exec.Command(p.powerShell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "unrestricted", "-file", script)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -53,14 +53,12 @@ func (p *program) run() {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		log.Fatal(err)
-		os.Exit(0)
 	}
 
 	client := imds.NewFromConfig(cfg)
 	instanceIdentityDocument, err := client.GetInstanceIdentityDocument(context.TODO(), &imds.GetInstanceIdentityDocumentInput{})
 	if err != nil {
-		//log.Fatal(err)
-		//os.Exit(0)
+		log.Fatal(err)
 	}
 
 	_ = instanceIdentityDocument
@@ -77,7 +75,6 @@ func (p *program) run() {
 	err = os.Mkdir(instancePath, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
-		os.Exit(0)
 	}
 
 	scriptsPath := fmt.Sprintf("%s\\Scripts", currentDirectory)
@@ -94,7 +91,6 @@ func (p *program) run() {
 		err, _, stderr := ps.ExecuteScript(filePath)
 		if err != nil {
 			log.Fatal(err)
-			os.Exit(0)
 		}
 
 		if stderr != "" {
@@ -131,7 +127,7 @@ func main() {
 	}
 	err = s.Run()
 	if err != nil {
-		logger.Error(err)
+		log.Fatal(err)
 	}
 }
 
@@ -146,8 +142,7 @@ func setLogLocation() {
 	logPath := fmt.Sprintf("%s\\ec2prep.log", currentDirectory)
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, os.ModePerm)
 	if err != nil {
-		log.Fatalln(err)
-		os.Exit(0)
+		log.Fatal(err)
 	}
 
 	log.SetOutput(logFile)
