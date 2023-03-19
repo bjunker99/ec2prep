@@ -14,7 +14,6 @@ import (
 )
 
 var currentDirectory = getCurrentDirectory()
-var logger service.Logger
 
 type program struct{}
 
@@ -43,6 +42,8 @@ func (p *PowerShell) ExecuteScript(script string) (error, string, string) {
 }
 
 func (p *program) Start(s service.Service) error {
+	_ = s
+
 	go p.run()
 	return nil
 }
@@ -104,6 +105,7 @@ func (p *program) run() {
 }
 
 func (p *program) Stop(s service.Service) error {
+	_ = s
 	return nil
 }
 
@@ -118,10 +120,6 @@ func main() {
 
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	logger, err = s.Logger(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
