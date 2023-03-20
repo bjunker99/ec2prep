@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
@@ -109,22 +110,58 @@ func (p *program) Stop(s service.Service) error {
 }
 
 func main() {
-	setLogLocation()
+	installFlag := flag.Bool("install", false, "Install the Windows service.")
+	uninstallFlag := flag.Bool("uninstall", false, "Uninstall the Windows service.")
+	flag.Parse()
+
+	options := make(map[string]interface{})
+	options["DelayedAutoStart"] = true
 
 	svcConfig := &service.Config{
 		Name:        "EC2Prep",
 		DisplayName: "EC2 Prep",
 		Description: "Runs powershell scripts on instance first boot",
+		Option:      options,
 	}
-
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	if *installFlag == true {
+		initializeDirectories()
+		s.Install()
+		return
+	}
+
+	if *uninstallFlag == true {
+		s.Uninstall()
+		return
+	}
+
+	setLogLocation()
+
 	err = s.Run()
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func initializeDirectories() {
+	instanceDirectory := fmt.Sprintf("%s\\Instance", currentDirectory)
+	if _, err := os.Stat(instanceDirectory); os.IsNotExist(err) {
+		err = os.Mkdir(instanceDirectory, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	scriptsDirectory := fmt.Sprintf("%s\\Scripts", currentDirectory)
+	if _, err := os.Stat(scriptsDirectory); os.IsNotExist(err) {
+		err = os.Mkdir(scriptsDirectory, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
