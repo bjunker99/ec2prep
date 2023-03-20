@@ -62,8 +62,7 @@ func (p *program) run() {
 		log.Fatal(err)
 	}
 
-	_ = instanceIdentityDocument
-	instanceId := "i-10234321"
+	instanceId := instanceIdentityDocument.InstanceID
 
 	instancePath := fmt.Sprintf("%s\\Instance\\%s", currentDirectory, instanceId)
 	log.Printf("Checking if instance has already been processed.")
