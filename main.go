@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
@@ -14,7 +15,6 @@ import (
 )
 
 var currentDirectory = getCurrentDirectory()
-var logger service.Logger
 
 type program struct{}
 
@@ -33,7 +33,7 @@ func (p *PowerShell) ExecuteScript(script string) (error, string, string) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	cmd := exec.Command(p.powerShell, "-nologo", "-noprofile", "-executionpolicy", "unrestricted", "-file", script)
+	cmd := exec.Command(p.powerShell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "unrestricted", "-file", script)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -43,6 +43,8 @@ func (p *PowerShell) ExecuteScript(script string) (error, string, string) {
 }
 
 func (p *program) Start(s service.Service) error {
+	_ = s
+
 	go p.run()
 	return nil
 }
@@ -53,18 +55,15 @@ func (p *program) run() {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		log.Fatal(err)
-		os.Exit(0)
 	}
 
 	client := imds.NewFromConfig(cfg)
 	instanceIdentityDocument, err := client.GetInstanceIdentityDocument(context.TODO(), &imds.GetInstanceIdentityDocumentInput{})
 	if err != nil {
-		//log.Fatal(err)
-		//os.Exit(0)
+		log.Fatal(err)
 	}
 
-	_ = instanceIdentityDocument
-	instanceId := "i-10234321"
+	instanceId := instanceIdentityDocument.InstanceID
 
 	instancePath := fmt.Sprintf("%s\\Instance\\%s", currentDirectory, instanceId)
 	log.Printf("Checking if instance has already been processed.")
@@ -77,7 +76,6 @@ func (p *program) run() {
 	err = os.Mkdir(instancePath, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
-		os.Exit(0)
 	}
 
 	scriptsPath := fmt.Sprintf("%s\\Scripts", currentDirectory)
@@ -94,7 +92,6 @@ func (p *program) run() {
 		err, _, stderr := ps.ExecuteScript(filePath)
 		if err != nil {
 			log.Fatal(err)
-			os.Exit(0)
 		}
 
 		if stderr != "" {
@@ -108,30 +105,63 @@ func (p *program) run() {
 }
 
 func (p *program) Stop(s service.Service) error {
+	_ = s
 	return nil
 }
 
 func main() {
-	setLogLocation()
+	installFlag := flag.Bool("install", false, "Install the Windows service.")
+	uninstallFlag := flag.Bool("uninstall", false, "Uninstall the Windows service.")
+	flag.Parse()
+
+	options := make(map[string]interface{})
+	options["DelayedAutoStart"] = true
 
 	svcConfig := &service.Config{
 		Name:        "EC2Prep",
 		DisplayName: "EC2 Prep",
 		Description: "Runs powershell scripts on instance first boot",
+		Option:      options,
 	}
-
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	logger, err = s.Logger(nil)
+
+	if *installFlag == true {
+		initializeDirectories()
+		s.Install()
+		return
+	}
+
+	if *uninstallFlag == true {
+		s.Uninstall()
+		return
+	}
+
+	setLogLocation()
+
+	err = s.Run()
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = s.Run()
-	if err != nil {
-		logger.Error(err)
+}
+
+func initializeDirectories() {
+	instanceDirectory := fmt.Sprintf("%s\\Instance", currentDirectory)
+	if _, err := os.Stat(instanceDirectory); os.IsNotExist(err) {
+		err = os.Mkdir(instanceDirectory, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	scriptsDirectory := fmt.Sprintf("%s\\Scripts", currentDirectory)
+	if _, err := os.Stat(scriptsDirectory); os.IsNotExist(err) {
+		err = os.Mkdir(scriptsDirectory, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -146,8 +176,7 @@ func setLogLocation() {
 	logPath := fmt.Sprintf("%s\\ec2prep.log", currentDirectory)
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, os.ModePerm)
 	if err != nil {
-		log.Fatalln(err)
-		os.Exit(0)
+		log.Fatal(err)
 	}
 
 	log.SetOutput(logFile)
