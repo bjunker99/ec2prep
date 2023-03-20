@@ -13,7 +13,6 @@ builds:
       - windows
     goarch:
       - amd64
-
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of uname.
@@ -29,15 +28,14 @@ archives:
     - goos: windows
       format: zip
 checksum:
-  name_template: 'checksums.txt'
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  algorithm: sha256
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
+release:
+  draft: true
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
+  skip: true
 
 # The lines beneath this are called `modelines`. See `:help modeline`
 # Feel free to remove those if you don't want/use them.
