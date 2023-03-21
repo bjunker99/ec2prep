@@ -33,7 +33,7 @@ func (p *PowerShell) ExecuteScript(script string) (error, string, string) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	cmd := exec.Command(p.powerShell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "unrestricted", "-file", script)
+	cmd := exec.Command(p.powerShell, "-NonInteractive", "-ExecutionPolicy", "RemoteSigned", "-File", script)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -89,9 +89,13 @@ func (p *program) run() {
 		filePath := fmt.Sprintf("%s\\%s", scriptsPath, file.Name())
 		log.Printf("Running script %s", filePath)
 
-		err, _, stderr := ps.ExecuteScript(filePath)
+		err, stdout, stderr := ps.ExecuteScript(filePath)
 		if err != nil {
 			log.Fatal(err)
+		}
+
+		if stdout != "" {
+			log.Print(stdout)
 		}
 
 		if stderr != "" {
@@ -131,12 +135,18 @@ func main() {
 
 	if *installFlag == true {
 		initializeDirectories()
-		s.Install()
+		err := s.Install()
+		if err != nil {
+			log.Fatal(err)
+		}
 		return
 	}
 
 	if *uninstallFlag == true {
-		s.Uninstall()
+		err := s.Uninstall()
+		if err != nil {
+			log.Fatal(err)
+		}
 		return
 	}
 
